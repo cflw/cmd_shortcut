@@ -1,0 +1,124 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>qrc;rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Form Files">
+      <UniqueIdentifier>{99349809-55BA-4b9d-BF79-8FDBB0286EB3}</UniqueIdentifier>
+      <Extensions>ui</Extensions>
+    </Filter>
+    <Filter Include="Translation Files">
+      <UniqueIdentifier>{639EADAA-A684-42e4-A9AD-28FC9BCB8F7C}</UniqueIdentifier>
+      <Extensions>ts</Extensions>
+    </Filter>
+    <Filter Include="参数控件">
+      <UniqueIdentifier>{c1f6ead3-fe70-4e64-b76e-1966b94ff5d1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="文件">
+      <UniqueIdentifier>{caacfd4c-2508-4fbc-83f7-a6b4466aa8af}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="窗口">
+      <UniqueIdentifier>{a9c30ae4-6d56-4803-aa1d-8ecd84a2a472}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="公共">
+      <UniqueIdentifier>{8ff5e6f5-7379-40f6-b4a9-9dbb6d0b0489}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="窗口后台">
+      <UniqueIdentifier>{fd29ce11-9978-4047-b193-fcb43e509b27}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <QtRcc Include="mainwindow.qrc">
+      <Filter>Resource Files</Filter>
+    </QtRcc>
+    <QtUic Include="mainwindow.ui">
+      <Filter>Form Files</Filter>
+    </QtUic>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="argfilebox.cpp">
+      <Filter>参数控件</Filter>
+    </ClCompile>
+    <ClCompile Include="argtextbox.cpp">
+      <Filter>参数控件</Filter>
+    </ClCompile>
+    <ClCompile Include="argcheckbox.cpp">
+      <Filter>参数控件</Filter>
+    </ClCompile>
+    <ClCompile Include="file_command.cpp">
+      <Filter>文件</Filter>
+    </ClCompile>
+    <ClCompile Include="file_setting.cpp">
+      <Filter>文件</Filter>
+    </ClCompile>
+    <ClCompile Include="mainwindow.cpp">
+      <Filter>窗口</Filter>
+    </ClCompile>
+    <ClCompile Include="argtemplate.cpp">
+      <Filter>公共</Filter>
+    </ClCompile>
+    <ClCompile Include="common.cpp">
+      <Filter>公共</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>公共</Filter>
+    </ClCompile>
+    <ClCompile Include="xml_utility.cpp">
+      <Filter>公共</Filter>
+    </ClCompile>
+    <ClCompile Include="arglistmanage.cpp">
+      <Filter>窗口后台</Filter>
+    </ClCompile>
+    <ClCompile Include="cmdmanage.cpp">
+      <Filter>窗口后台</Filter>
+    </ClCompile>
+    <ClCompile Include="outmanage.cpp">
+      <Filter>窗口后台</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="arginterface.h">
+      <Filter>参数控件</Filter>
+    </ClInclude>
+    <ClInclude Include="argcheckbox.h">
+      <Filter>参数控件</Filter>
+    </ClInclude>
+    <ClInclude Include="file_command.h">
+      <Filter>文件</Filter>
+    </ClInclude>
+    <ClInclude Include="file_setting.h">
+      <Filter>文件</Filter>
+    </ClInclude>
+    <ClInclude Include="argtemplate.h">
+      <Filter>公共</Filter>
+    </ClInclude>
+    <ClInclude Include="common.h">
+      <Filter>公共</Filter>
+    </ClInclude>
+    <ClInclude Include="xml_utility.h">
+      <Filter>公共</Filter>
+    </ClInclude>
+    <ClInclude Include="outmanage.h">
+      <Filter>窗口后台</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="argfilebox.h">
+      <Filter>参数控件</Filter>
+    </QtMoc>
+    <QtMoc Include="argtextbox.h">
+      <Filter>参数控件</Filter>
+    </QtMoc>
+    <QtMoc Include="mainwindow.h">
+      <Filter>窗口</Filter>
+    </QtMoc>
+    <QtMoc Include="arglistmanage.h">
+      <Filter>窗口后台</Filter>
+    </QtMoc>
+    <QtMoc Include="cmdmanage.h">
+      <Filter>窗口后台</Filter>
+    </QtMoc>
+  </ItemGroup>
+</Project>
