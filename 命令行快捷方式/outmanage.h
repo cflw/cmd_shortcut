@@ -4,6 +4,7 @@
 #include <qplaintextedit.h>
 class C输出管理 {
 public:
+	static C输出管理 *g这;
 	C输出管理(QPlainTextEdit &);
 	void f打印程序信息();
 	void f输出(const QString &文本);	//输出不换行

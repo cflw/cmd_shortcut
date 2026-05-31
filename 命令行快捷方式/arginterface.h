@@ -16,5 +16,6 @@ public:
 	virtual bool fi值() const = 0;	//是否输入值
 	virtual void fs颜色(E颜色) const = 0;	//用来提示
 	virtual void f清除输入() const = 0;
+	const S命令参数 *m参数 = nullptr;	//关联的参数,用来获取参数类型等信息
 };
 #endif	//ARGINTERFACE_H

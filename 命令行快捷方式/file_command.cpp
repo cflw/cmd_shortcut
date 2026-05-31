@@ -2,29 +2,7 @@
 #include <QList>
 #include "xml_utility.h"
 #include "file_setting.h"
-//==============================================================================
-// 参数
-//==============================================================================
-S命令参数::S命令参数(const QDomElement &a参数节点):
-	m名称(a参数节点.attribute("名称")),
-	m描述(a参数节点.firstChildElement("描述").text()),
-	m提示(a参数节点.firstChildElement("提示").text()),
-	m模板(a参数节点.firstChildElement("模板").text()),
-	m过滤器(a参数节点.firstChildElement("过滤器").text()),
-	m参数类型(f解析参数类型(a参数节点.attribute("类型"))),
-	m必需(a参数节点.firstChildElement("必需").text() == "true"),
-	m绑定设置(a参数节点.firstChildElement("绑定设置").text() == "true"),
-	m多参数(a参数节点.firstChildElement("多参数").text() == "true"),
-	mf模板(F自动参数模板(a参数节点)) {
-	if (const QString v冲突参数s = a参数节点.firstChildElement("冲突参数").text(); !v冲突参数s.isEmpty()) {
-		for (const QString &v冲突参数 : v冲突参数s.split(",")) {
-			ma冲突参数.push_back(v冲突参数);
-		}
-	}
-}
-QString S命令参数::f生成(const QString &a值) const {
-	return mf模板(a值);
-}
+C命令文件 *g当前打开命令 = nullptr;
 //==============================================================================
 // 命令文件
 //==============================================================================
@@ -38,6 +16,7 @@ std::generator<QString> C命令文件::fe所有文件() {
 	}
 }
 bool C命令文件::f打开(const QString &a路径) {
+	g当前打开命令 = this;
 	m文件名 = QFileInfo(a路径).fileName();
 	//打开文档
 	QDomDocument v文档;
@@ -57,11 +36,12 @@ bool C命令文件::f打开(const QString &a路径) {
 		ma命令参数.emplace_back(v参数节点.toElement());
 	}
 	m命令模板 = C命令模板(v命令节点.firstChildElement("模板").text(), ma命令参数);
+	//检查文件
 	//结束
 	m打开 = true;
 	return true;
 }
-void C命令文件::fs设置(const S命令设置 &a设置) {
+void C命令文件::fs设置(const C命令设置 &a设置) {
 	m命令设置 = &a设置;
 }
 const QString &C命令文件::fg文件名() const {
@@ -94,7 +74,7 @@ QString C命令文件::f生成(const C实参组 &aa参数) const {
 QString C命令文件::fg绑定参数值(const QString &a绑定参数名) const {
 	return m命令设置->fg绑定参数值(a绑定参数名);
 }
-const S命令设置 &C命令文件::fg设置() const {
+const C命令设置 &C命令文件::fg设置() const {
 	return *m命令设置;
 }
 //==============================================================================
@@ -103,6 +83,7 @@ const S命令设置 &C命令文件::fg设置() const {
 C命令文件 *C命令文件缓存::f打开(const QString &a文件名) {
 	if (auto iter = ma命令文件.find(a文件名); iter != ma命令文件.end()) {
 		const std::unique_ptr<C命令文件> &vp命令文件 = iter->second;
+		g当前打开命令 = vp命令文件.get();
 		return vp命令文件->fi打开() ? vp命令文件.get() : nullptr;
 	}
 	C命令文件 *v新文件 = new C命令文件();

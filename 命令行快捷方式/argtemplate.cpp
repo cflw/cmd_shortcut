@@ -1,7 +1,10 @@
 #include "argtemplate.h"
+#include <set>
+#include <ranges>
 #include <QDomElement>
 #include "common.h"
 #include "file_command.h"
+#include "outmanage.h"
 //==============================================================================
 // 参数组
 //==============================================================================
@@ -11,12 +14,12 @@ void C实参组::f清空() {
 bool C实参组::fi空() const {
 	return ma参数值.empty();
 }
-void C实参组::f添加(const QString &a键, const QString &a值) {
-	ma参数值.emplace_back(a键, a值);
+void C实参组::f添加(const S命令参数 &a参数, const QString &a值) {
+	ma参数值.emplace_back(&a参数, a值);
 }
 QString C实参组::f查找(const QString &a键) const {
-	for (const auto &[v键, v值] : ma参数值) {
-		if (v键 == a键) {
+	for (const auto &[v参数, v值] : ma参数值) {
+		if (v参数->m名称 == a键) {
 			return v值;
 		}
 	}
@@ -24,15 +27,15 @@ QString C实参组::f查找(const QString &a键) const {
 }
 std::generator<QString> C实参组::fe查找(const QString &a键) const {
 	std::vector<const QString *> v返回;
-	for (const auto &[v键, v值] : ma参数值) {
-		if (v键 == a键) {
+	for (const auto &[v参数, v值] : ma参数值) {
+		if (v参数->m名称 == a键) {
 			co_yield v值;
 		}
 	}
 }
 bool C实参组::fi存在(const QString &a键) const {
-	for (const auto &[v键, v值] : ma参数值) {
-		if (v键 == a键) {
+	for (const auto &[v参数, v值] : ma参数值) {
+		if (v参数->m名称 == a键) {
 			return !v值.isEmpty();
 		}
 	}
@@ -75,10 +78,15 @@ tf参数模板 F自动参数模板(const QDomElement &a参数节点) {
 	} else {	//无括号,或括号不完整
 		return F参数模板_固定(v模板);
 	}
-}//==============================================================================
+}
+//==============================================================================
 // 生成
 //==============================================================================
 std::vector<S生成> f构造生成序列(const QString &a模板, const std::vector<S命令参数> &aa参数) {
+	std::set<const S命令参数 *> v记录(
+		std::from_range, 
+		std::views::transform(aa参数, [](const S命令参数 &a参数) {return &a参数; })
+	);	//记录未找到参数,然后提示
 	std::vector<S生成> v返回;
 	qsizetype v文本开始 = 0;
 	qsizetype v括号开始 = a模板.indexOf('{');
@@ -94,12 +102,19 @@ std::vector<S生成> f构造生成序列(const QString &a模板, const std::vect
 		const QString v参数名 = a模板.mid(v括号开始 + 1, v括号结束 - v括号开始 - 1);
 		if (auto v找 = std::find_if(aa参数.begin(), aa参数.end(), [&v参数名](const S命令参数 &a参数)->bool {return a参数.m名称 == v参数名; }); v找 != aa参数.end()) {
 			v返回.emplace_back(&*v找, v找->mf模板);
+			v记录.erase(&*v找);
 		} else {	//没找到参数,生成原文
 			v返回.emplace_back(nullptr, F参数模板_固定(a模板.mid(v括号开始, v括号结束 - v括号开始 + 1)));
+			C输出管理::g这->f输出行(QString("警告: 命令文件\"%1\"的模板\"{%2}\"没找到对应参数, 将原样输出\"{%2}\"").arg(g当前打开命令->fg文件名(), v参数名));
 		}
 		//结束
 		v文本开始 = v括号结束 + 1;
 		v括号开始 = a模板.indexOf('{', v文本开始);
+	}
+	v返回.emplace_back(nullptr, F参数模板_固定(a模板.mid(v文本开始)));	//添加剩余文本
+	//结束
+	for (const S命令参数 *v参数 : v记录) {
+		C输出管理::g这->f输出行(QString("警告: 命令文件\"%1\"的参数\"%2\"不在模板中, 参数\"%2\"将不会生成").arg(g当前打开命令->fg文件名(), v参数->m名称));
 	}
 	return v返回;
 }

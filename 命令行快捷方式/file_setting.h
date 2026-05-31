@@ -1,6 +1,7 @@
 #ifndef FILE_SETTING_H
 #define FILE_SETTING_H
 #include <vector>
+#include <map>
 #include <QString>
 #include <QDomDocument>
 #include <QDir>
@@ -14,19 +15,23 @@ class C命令文件;
 using t绑定参数 = std::pair<const QString, QString>;
 t绑定参数 f绑定参数_构造(const QDomElement &);
 QDomElement f绑定参数_转元素(QDomDocument &, const t绑定参数 &);
-struct S命令设置 {
+class C命令设置 {
 	friend class C设置文件;
 public:
-	S命令设置() = default;
-	S命令设置(const QDomElement &);
+	C命令设置() = default;
+	C命令设置(const QDomElement &);
 	QDomElement ft元素(QDomDocument &) const;
 	QString fg文件名() const;
-	bool fs绑定参数值(const QString &, const QString &);
-	QString fg绑定参数值(const QString &) const;
+	bool fs绑定参数值(const QString &键, const QString &值);
+	QString fg绑定参数值(const QString &键) const;
+	void f清空多参数值(const QString &键);
+	void f添加多参数值(const QString &键, const QString &值);
+	std::generator<QString> fe多参数值(const QString &键) const;
+	std::vector<QString> fg多参数值(const QString &键) const;
 public:
 	QString m文件名;
 	QString m工作目录;
-	std::map<QString, QString> ma绑定参数;
+	std::multimap<QString, QString> ma绑定参数;
 	bool m启用 = false;	//是否在命令列表中显示
 };
 //==============================================================================
@@ -43,13 +48,13 @@ public:
 	bool f打开(const QString &路径);
 	bool f保存(const QString &路径);
 	QDomDocument ft文档() const;
-	std::generator<S命令设置 &> fe命令设置();
-	std::generator<S命令设置 &> fe启用命令();
+	std::generator<C命令设置 &> fe命令设置();
+	std::generator<C命令设置 &> fe启用命令();
 	std::generator<QString> fe所有文件() const;
 	std::generator<QString> fe启用文件() const;
 	bool fi空() const;
-	S命令设置 &f构造命令();	//在启动的对比文件阶段调用
-	S命令设置 *fg命令设置(const QString &命令文件名);
+	C命令设置 &f构造命令();	//在启动的对比文件阶段调用
+	C命令设置 *fg命令设置(const QString &命令文件名);
 	//属性
 	const QString &fg主机名() const;
 	E平台 fg平台() const;
@@ -57,7 +62,7 @@ public:
 	void f更新工作目录(const C命令文件 &a命令文件, const QString &工作目录);
 private:
 	QString m主机名;
-	std::vector<std::unique_ptr<S命令设置>> ma命令设置;
+	std::vector<std::unique_ptr<C命令设置>> ma命令设置;
 	E平台 m平台 = c当前平台;	//当前平台,没有组合
 	bool m编辑 = false;	//编辑标志,为true说明编辑过需要保存
 };

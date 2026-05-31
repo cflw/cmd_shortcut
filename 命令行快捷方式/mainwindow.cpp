@@ -19,8 +19,7 @@
 //==============================================================================
 MainWindow::MainWindow(QWidget *parent):
 	QMainWindow(parent), ui(new Ui::MainWindow),
-	m命令列表模型(new QStringListModel(this)),
-	m实参组(new C实参组())
+	m命令列表模型(new QStringListModel(this))
 {
     ui->setupUi(this);
 	ui->w_cmdlist->setModel(m命令列表模型.get());
@@ -58,7 +57,7 @@ void MainWindow::f载入文件() {
 		) {	//查找新文件
 		m输出管理->f输出(QString("发现新文件: %1...").arg(v新文件名));
 		C命令文件 *vp命令文件 = m命令文件缓存->f打开(v新文件名);
-		S命令设置 &v命令设置 = m设置文件->f构造命令();
+		C命令设置 &v命令设置 = m设置文件->f构造命令();
 		v命令设置.m文件名 = v新文件名;
 		if (!vp命令文件) {
 			m输出管理->f输出行("打开失败");
@@ -77,13 +76,15 @@ void MainWindow::f刷新命令列表() {	//在载入文件后调用,只调用一
 	}
 	//打开命令文件,并关联设置与命令
 	std::vector<const C命令文件 *> va命令文件;
-	for (S命令设置 &v命令设置 : m设置文件->fe启用命令()) {
+	for (C命令设置 &v命令设置 : m设置文件->fe启用命令()) {
 		if (C命令文件 *const vp命令文件 = m命令文件缓存->f打开(v命令设置.m文件名)) {
 			va命令文件.push_back(vp命令文件);
 			vp命令文件->fs设置(v命令设置);
 			for (S命令参数 &v命令参数 : vp命令文件->fe命令参数()) {
 				if (v命令参数.m绑定设置) {
-					v命令设置.ma绑定参数.try_emplace(v命令参数.m名称, QString());
+					if (!v命令设置.ma绑定参数.contains(v命令参数.m名称)) {	//try_emplace()
+						v命令设置.ma绑定参数.emplace(v命令参数.m名称, QString());
+					}
 				}
 			}
 		} else {
@@ -104,8 +105,7 @@ void MainWindow::f刷新命令列表() {	//在载入文件后调用,只调用一
 	ma启用命令 = std::move(va命令文件);
 }
 C实参组 &MainWindow::f生成实参组() {
-	*m实参组 = m参数列表->f生成实参组();
-	return *m实参组;
+	return ma记忆实参[m当前命令] = m参数列表->f生成实参组();
 }
 void MainWindow::f刷新命令框() {	//生成命令
 	//生成命令
@@ -123,7 +123,7 @@ QString MainWindow::fg工作目录() const {
 }
 void MainWindow::f更新设置() {
 	if (m当前命令) {	//有选择命令才能更新
-		m设置文件->f更新绑定参数(*m当前命令, *m实参组);
+		m设置文件->f更新绑定参数(*m当前命令, ma记忆实参[m当前命令]);
 		m设置文件->f更新工作目录(*m当前命令, fg工作目录());
 	}
 }
@@ -177,7 +177,11 @@ void MainWindow::on_w_cmdlist_currentChanged(const QModelIndex &current, const Q
 	}
 	if (current.isValid()) {
 		const C命令文件 *const vp命令 = ma启用命令.at(current.row());
-		m参数列表->f刷新列表(*vp命令);
+		if (auto vp记忆实参 = ma记忆实参.find(vp命令); vp记忆实参 != ma记忆实参.end()) {
+			m参数列表->f刷新列表(*vp命令, &vp记忆实参->second);
+		} else {
+			m参数列表->f刷新列表(*vp命令);
+		}
 		fs工作目录(vp命令->fg设置().m工作目录);
 		f刷新命令框();
 	} else {

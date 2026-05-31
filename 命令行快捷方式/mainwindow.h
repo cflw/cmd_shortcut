@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <vector>
+#include <map>
 #include <memory>
 #include <QMainWindow>
 
@@ -53,6 +54,6 @@ private:
 	std::unique_ptr<C命令管理> m命令管理;
 	std::vector<const C命令文件 *> ma启用命令;
 	const C命令文件 *m当前命令 = nullptr;
-	std::unique_ptr<C实参组> m实参组;	//缓存,上次生成结果
+	std::map<const C命令文件 *, C实参组> ma记忆实参;	//保存每个命令上次填写的实参,切换命令时可以恢复
 };
 #endif // MAINWINDOW_H

@@ -77,6 +77,15 @@
     <ClCompile Include="outmanage.cpp">
       <Filter>窗口后台</Filter>
     </ClCompile>
+    <ClCompile Include="argcombobox.cpp">
+      <Filter>参数控件</Filter>
+    </ClCompile>
+    <ClCompile Include="cmdarg.cpp">
+      <Filter>公共</Filter>
+    </ClCompile>
+    <ClCompile Include="arglistbuild.cpp">
+      <Filter>窗口后台</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="arginterface.h">
@@ -101,6 +110,15 @@
       <Filter>公共</Filter>
     </ClInclude>
     <ClInclude Include="outmanage.h">
+      <Filter>窗口后台</Filter>
+    </ClInclude>
+    <ClInclude Include="argcombobox.h">
+      <Filter>参数控件</Filter>
+    </ClInclude>
+    <ClInclude Include="cmdarg.h">
+      <Filter>公共</Filter>
+    </ClInclude>
+    <ClInclude Include="arglistbuild.h">
       <Filter>窗口后台</Filter>
     </ClInclude>
   </ItemGroup>

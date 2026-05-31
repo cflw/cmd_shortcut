@@ -19,7 +19,7 @@ QDomElement f绑定参数_转元素(QDomDocument &a文档, const t绑定参数 &
 	v参数节点.appendChild(createSimpleElement(a文档, "值", a绑定参数.second));
 	return v参数节点;
 }
-S命令设置::S命令设置(const QDomElement &a命令节点):
+C命令设置::C命令设置(const QDomElement &a命令节点):
 	m文件名(a命令节点.attribute("文件名")),
 	m工作目录(a命令节点.firstChildElement("工作目录").text()),
 	m启用(a命令节点.attribute("启用") == "true") {
@@ -27,33 +27,43 @@ S命令设置::S命令设置(const QDomElement &a命令节点):
 		return;
 	}
 	for (const QDomNode &v参数节点 : a命令节点.elementsByTagName("参数")) {
-		ma绑定参数.emplace(f绑定参数_构造(v参数节点.toElement()));
+		QDomElement v元素 = v参数节点.toElement();
+		const QString v名称 = v元素.attribute("名称");
+		for (const QDomNode &v值节点: v元素.elementsByTagName("值")) {
+			const QString v值 = v值节点.toElement().text();
+			ma绑定参数.emplace(v名称, v值);
+		}
 	}
 }
-QDomElement S命令设置::ft元素(QDomDocument &a文档) const {
+QDomElement C命令设置::ft元素(QDomDocument &a文档) const {
 	QDomElement v命令节点 = a文档.createElement("命令");
 	v命令节点.setAttribute("文件名", m文件名);
 	v命令节点.setAttribute("启用", m启用 ? "true" : "false");
 	if (!m工作目录.isEmpty()) {
 		v命令节点.appendChild(createSimpleElement(a文档, "工作目录", m工作目录));
 	}
-	for (const t绑定参数 &v绑定参数 : ma绑定参数) {
-		QDomElement v参数节点 = f绑定参数_转元素(a文档, v绑定参数);
+	for (auto v键迭代 = ma绑定参数.begin(); v键迭代 != ma绑定参数.end(); v键迭代 = ma绑定参数.upper_bound(v键迭代->first)) {
+		QDomElement v参数节点 = a文档.createElement("参数");
+		v参数节点.setAttribute("名称", v键迭代->first);
+		auto v值范围 = ma绑定参数.equal_range(v键迭代->first);
+		for (auto v值迭代 = v值范围.first; v值迭代 != v值范围.second; ++v值迭代) {
+			v参数节点.appendChild(createSimpleElement(a文档, "值", v值迭代->second));
+		}
 		v命令节点.appendChild(v参数节点);
 	}
 	return v命令节点;
 }
-QString S命令设置::fg文件名() const {
+QString C命令设置::fg文件名() const {
 	return m文件名;
 }
-QString S命令设置::fg绑定参数值(const QString &a名称) const {
+QString C命令设置::fg绑定参数值(const QString &a名称) const {
 	if (auto v找 = ma绑定参数.find(a名称); v找 != ma绑定参数.end()) {
 		return v找->second;
 	} else {
 		return QString();
 	}
 }
-bool S命令设置::fs绑定参数值(const QString &a名称, const QString &a值) {
+bool C命令设置::fs绑定参数值(const QString &a名称, const QString &a值) {
 	if (auto v找 = ma绑定参数.find(a名称); v找 != ma绑定参数.end()) {
 		if (v找->second == a值) {
 			return false;
@@ -64,6 +74,26 @@ bool S命令设置::fs绑定参数值(const QString &a名称, const QString &a�
 	} else {
 		return false;
 	}
+}
+void C命令设置::f清空多参数值(const QString &a键) {
+	ma绑定参数.erase(a键);
+}
+void C命令设置::f添加多参数值(const QString &a键, const QString &a值) {
+	ma绑定参数.emplace(a键, a值);
+}
+std::generator<QString> C命令设置::fe多参数值(const QString &a键) const {
+	auto [v开始, v结束] = ma绑定参数.equal_range(a键);
+	for (auto v找 = v开始; v找 != v结束; ++v找) {
+		co_yield v找->second;
+	}
+}
+std::vector<QString> C命令设置::fg多参数值(const QString &a键) const {
+	std::vector<QString> v结果;
+	auto [v开始, v结束] = ma绑定参数.equal_range(a键);
+	for (auto v找 = v开始; v找 != v结束; ++v找) {
+		v结果.push_back(v找->second);
+	}
+	return v结果;
 }
 //==============================================================================
 // 设置文件
@@ -98,7 +128,7 @@ bool C设置文件::f打开(const QString &a路径) {
 	//命令组
 	const QDomElement v命令组节点 = v根节点.firstChildElement("命令组");
 	for (const QDomNode v命令节点 : v命令组节点.elementsByTagName("命令")) {
-		ma命令设置.emplace_back(std::make_unique<S命令设置>(v命令节点.toElement()));
+		ma命令设置.emplace_back(std::make_unique<C命令设置>(v命令节点.toElement()));
 	}
 	return true;
 }
@@ -130,12 +160,12 @@ QDomDocument C设置文件::ft文档() const {
 	//返回
 	return v文档;
 }
-std::generator<S命令设置 &> C设置文件::fe命令设置() {
+std::generator<C命令设置 &> C设置文件::fe命令设置() {
 	for (auto &vp命令设置 : ma命令设置) {
 		co_yield *vp命令设置;
 	}
 }
-std::generator<S命令设置 &> C设置文件::fe启用命令() {
+std::generator<C命令设置 &> C设置文件::fe启用命令() {
 	for (auto &vp命令设置 : ma命令设置) {
 		if (vp命令设置->m启用) {
 			co_yield *vp命令设置;
@@ -157,9 +187,9 @@ std::generator<QString> C设置文件::fe启用文件() const {
 bool C设置文件::fi空() const {
 	return ma命令设置.empty();
 }
-S命令设置 &C设置文件::f构造命令() {
+C命令设置 &C设置文件::f构造命令() {
 	m编辑 = true;
-	return *ma命令设置.emplace_back(new S命令设置());
+	return *ma命令设置.emplace_back(new C命令设置());
 }
 const QString &C设置文件::fg主机名() const {
 	return m主机名;
@@ -167,25 +197,75 @@ const QString &C设置文件::fg主机名() const {
 E平台 C设置文件::fg平台() const {
 	return m平台;
 }
-S命令设置 *C设置文件::fg命令设置(const QString &a文件名) {
-	auto v找 = std::find_if(ma命令设置.begin(), ma命令设置.end(), [&a文件名](const std::unique_ptr<S命令设置> &a)->bool {return a->m文件名 == a文件名; });
+C命令设置 *C设置文件::fg命令设置(const QString &a文件名) {
+	auto v找 = std::find_if(ma命令设置.begin(), ma命令设置.end(), [&a文件名](const std::unique_ptr<C命令设置> &a)->bool {return a->m文件名 == a文件名; });
 	if (v找 == ma命令设置.end()) {
 		return nullptr;
 	}
 	return v找->get();
 }
 void C设置文件::f更新绑定参数(const C命令文件 &a命令文件, const C实参组 &a参数组) {
-	if (S命令设置 *vp命令设置 = fg命令设置(a命令文件.fg文件名())) {
-		for (const t绑定参数 &v绑定参数 : a参数组.ma参数值) {
-			m编辑 |= vp命令设置->fs绑定参数值(v绑定参数.first, v绑定参数.second);
+	C命令设置 *const vp命令设置 = fg命令设置(a命令文件.fg文件名());
+	if (!vp命令设置) {
+		return;
+	}
+	std::vector<QString> v多参数缓冲;	//写入
+	QString v多参数名;
+	auto f写入多参数 = [&]() {
+		//判断是否编辑
+		std::vector<QString> v多参数值 = vp命令设置->fg多参数值(v多参数名);
+		bool v需要写入 = false;
+		if (v多参数缓冲.size() != v多参数值.size()) {
+			v需要写入 = true;
+		} else {	//数量相同,比较每个值
+			for (size_t i = 0; i != v多参数缓冲.size(); ++i) {
+				if (v多参数缓冲[i] != v多参数值[i]) {
+					v需要写入 = true;
+					break;
+				}
+			}
 		}
+		if (v需要写入) {
+			vp命令设置->f清空多参数值(v多参数名);
+			for (const QString &v值 : v多参数缓冲) {
+				vp命令设置->f添加多参数值(v多参数名, v值);
+			}
+			v多参数缓冲.clear();
+			m编辑 |= true;
+		}
+	};
+	for (const S参数记忆 &v记忆 : a参数组.ma参数值) {
+		if (v记忆.m参数->m多参数) {	//多参数
+			if (v多参数名 == v记忆.m参数->m名称) {	//连续多参数,先存到缓冲
+				v多参数缓冲.push_back(v记忆.m值);
+			} else if (!v多参数名.isEmpty()) {	//新的多参数
+				f写入多参数();
+				//结束
+				v多参数缓冲.push_back(v记忆.m值);
+				v多参数名 = v记忆.m参数->m名称;
+			} else {	//上次是开头或单参数
+				v多参数缓冲.push_back(v记忆.m值);
+				v多参数名 = v记忆.m参数->m名称;
+			}
+		} else {	//单参数
+			if (!v多参数名.isEmpty()) {	//上次是多参数,写入
+				f写入多参数();
+				v多参数名.clear();
+			}
+			m编辑 |= vp命令设置->fs绑定参数值(v记忆.m参数->m名称, v记忆.m值);
+		}
+	}
+	if (!v多参数名.isEmpty()) {	//多参数结尾,写入
+		f写入多参数();
 	}
 }
 void C设置文件::f更新工作目录(const C命令文件 &a命令文件, const QString &a工作目录) {
-	if (S命令设置 *vp命令设置 = fg命令设置(a命令文件.fg文件名())) {
-		if (vp命令设置->m工作目录 != a工作目录) {
-			vp命令设置->m工作目录 = a工作目录;
-			m编辑 |= true;
-		}
+	C命令设置 *const vp命令设置 = fg命令设置(a命令文件.fg文件名());
+	if (!vp命令设置) {
+		return;
+	}
+	if (vp命令设置->m工作目录 != a工作目录) {
+		vp命令设置->m工作目录 = a工作目录;
+		m编辑 |= true;
 	}
 }

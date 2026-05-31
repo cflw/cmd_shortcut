@@ -1,23 +1,6 @@
 #include "common.h"
 #include <map>
 #include <QList>
-const std::map<E参数类型, QString> ca值映射 = {
-	{E参数类型::e任意, "任意"},
-	{E参数类型::e整数, "整数"},
-	{E参数类型::e路径, "路径"},
-	{E参数类型::e开关, "开关"},
-};
-QString f生成参数类型(E参数类型 a参数类型) {
-	return ca值映射.at(a参数类型);
-}
-E参数类型 f解析参数类型(const QString &a参数类型) {
-	for (const auto &[k, v] : ca值映射) {
-		if (v == a参数类型) {
-			return k;
-		}
-	}
-	return E参数类型::e任意;
-}
 const std::map<E平台, QString> ca平台映射 = {
 	{E平台::windows, "windows"},
 	{E平台::linux, "linux"},

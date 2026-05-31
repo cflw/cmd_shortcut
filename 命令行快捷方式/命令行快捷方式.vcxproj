@@ -36,12 +36,12 @@
     <Import Project="$(QtMsBuild)\qt_defaults.props" />
   </ImportGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="QtSettings">
-    <QtInstall>6.9.0_msvc2022_64</QtInstall>
+    <QtInstall>6.9.3_msvc2022_64</QtInstall>
     <QtModules>core;gui;widgets;xml</QtModules>
     <QtBuildConfig>debug</QtBuildConfig>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'" Label="QtSettings">
-    <QtInstall>6.9.0_msvc2022_64</QtInstall>
+    <QtInstall>6.9.3_msvc2022_64</QtInstall>
     <QtModules>core;gui;widgets;xml</QtModules>
     <QtBuildConfig>release</QtBuildConfig>
   </PropertyGroup>
@@ -117,10 +117,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="argcheckbox.cpp" />
+    <ClCompile Include="argcombobox.cpp" />
     <ClCompile Include="argfilebox.cpp" />
+    <ClCompile Include="arglistbuild.cpp" />
     <ClCompile Include="arglistmanage.cpp" />
     <ClCompile Include="argtemplate.cpp" />
     <ClCompile Include="argtextbox.cpp" />
+    <ClCompile Include="cmdarg.cpp" />
     <ClCompile Include="cmdmanage.cpp" />
     <ClCompile Include="outmanage.cpp" />
     <ClCompile Include="xml_utility.cpp" />
@@ -135,12 +138,15 @@
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="argfilebox.h" />
+    <ClInclude Include="arglistbuild.h" />
     <ClInclude Include="argcheckbox.h" />
+    <ClInclude Include="argcombobox.h" />
     <ClInclude Include="arginterface.h" />
     <QtMoc Include="arglistmanage.h" />
     <ClInclude Include="argtemplate.h" />
     <QtMoc Include="argtextbox.h" />
     <QtMoc Include="cmdmanage.h" />
+    <ClInclude Include="cmdarg.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="file_command.h" />
     <ClInclude Include="file_setting.h" />

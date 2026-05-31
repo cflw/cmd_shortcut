@@ -1,7 +1,9 @@
 #include "outmanage.h"
 #include <QScrollBar>
+C输出管理 *C输出管理::g这 = nullptr;
 C输出管理::C输出管理(QPlainTextEdit &a文本框):
 	w输出框(&a文本框) {
+	g这 = this;
 	w输出框->setReadOnly(true);
 	w输出框->setWordWrapMode(QTextOption::WrapAnywhere);
 }

@@ -8,15 +8,19 @@
 struct S命令参数;
 class QDomElement;
 //命令参数
+struct S参数记忆 {	//记住参数
+	const S命令参数 *m参数 = nullptr;
+	QString m值;
+};
 class C实参组 {	//保存模板参数值的容器,键值对,允许多个同名键
 public:
 	void f清空();
 	bool fi空() const;
-	void f添加(const QString &键, const QString &值);
+	void f添加(const S命令参数 &参数, const QString &值);
 	QString f查找(const QString &键) const;
 	std::generator<QString> fe查找(const QString &键) const;
 	bool fi存在(const QString &键) const;
-	std::vector<std::pair<QString, QString>> ma参数值;
+	std::vector<S参数记忆> ma参数值;
 };
 //参数模板
 using tf参数模板 = std::function<QString(const QString &)>;
