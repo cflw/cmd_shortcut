@@ -3,6 +3,11 @@
 #include <QPushButton>
 #include <QStandardItemModel>
 #include <QComboBox>
+#include <QScrollBar>
+#include <algorithm>
+#include <vector>
+#include <utility>
+#include <QStringList>
 #include "mainwindow.h"
 #include "outmanage.h"
 #include "ui_mainwindow.h"
@@ -14,6 +19,7 @@
 //==============================================================================
 // 参数列表
 //==============================================================================
+static const QString c其它名("其它");	//未分组参数的分组名
 C参数列表::C参数列表(MainWindow &a主窗口):
 	w主窗口(&a主窗口),
 	w参数列表(a主窗口.ui->w_arglist),
@@ -25,9 +31,21 @@ C参数列表::C参数列表(MainWindow &a主窗口):
 	m模型->setHeaderData(c删除列, Qt::Horizontal, "删除");
 }
 void C参数列表::f重置尺寸(int a宽) {
-	w参数列表->setColumnWidth(c标签列, a宽 * 20 / 100 - 16);
-	w参数列表->setColumnWidth(c输入列, a宽 * 80 / 100 - 16);
-	w参数列表->setColumnWidth(c删除列, 30);
+	if (w参数列表->verticalScrollBar()->isVisible()) {	//垂直滚动条出现时才缩短输入列
+		//预留垂直滚动条宽度,缩短输入列以容纳它,避免出现水平滚动条
+		const int v竖条宽 = w参数列表->style()->pixelMetric(QStyle::PM_ScrollBarExtent, nullptr, w参数列表) + 2;	//加2像素,避免出现水平滚动条
+		const int v可用宽 = a宽 - v竖条宽;
+		const int v标签宽 = v可用宽 * 20 / 100 - 16;
+		const int v删除宽 = 30;
+		const int v输入宽 = v可用宽 - v标签宽 - v删除宽;	//输入列自动缩短,为垂直滚动条腾出空间
+		w参数列表->setColumnWidth(c标签列, v标签宽);
+		w参数列表->setColumnWidth(c输入列, v输入宽);
+		w参数列表->setColumnWidth(c删除列, v删除宽);
+	} else {	//无垂直滚动条,使用原始全宽布局,不缩短输入列
+		w参数列表->setColumnWidth(c标签列, a宽 * 20 / 100 - 16);
+		w参数列表->setColumnWidth(c输入列, a宽 * 80 / 100 - 16);
+		w参数列表->setColumnWidth(c删除列, 30);
+	}
 	w参数列表->horizontalHeader()->setSectionResizeMode(c标签列, QHeaderView::Interactive);
 	w参数列表->horizontalHeader()->setSectionResizeMode(c输入列, QHeaderView::Interactive);
 	w参数列表->horizontalHeader()->setSectionResizeMode(c删除列, QHeaderView::Interactive);
@@ -35,9 +53,11 @@ void C参数列表::f重置尺寸(int a宽) {
 void C参数列表::f刷新列表(const C命令文件 &a命令, const C实参组 *ap记忆实参) {	//在点击命令后调用
 	f清空所有行();
 	*mp当前命令 = &a命令;
+	//先收集所有参数行(参数指针, 初始值), 多参数展开为多行
+	std::vector<std::pair<const S命令参数 *, QString>> va参数值;
 	if (ap记忆实参) {
 		for (const S参数记忆 &a记忆 : ap记忆实参->ma参数值) {
-			f添加行(*a记忆.m参数, a记忆.m值);
+			va参数值.push_back({a记忆.m参数, a记忆.m值});
 		}
 	} else {
 		const C命令设置 &v设置 = a命令.fg设置();	//用来获取绑定设置值
@@ -46,20 +66,78 @@ void C参数列表::f刷新列表(const C命令文件 &a命令, const C实参组
 				if (a参数.m多参数) {	//多参数可能绑定多个值,添加多行
 					const std::vector<QString> v多参数值 = v设置.fg多参数值(a参数.m名称);
 					if (v多参数值.empty()) {	//无绑定值,添加一行
-						f添加行(a参数, a参数.fg默认值());
+						va参数值.push_back({&a参数, a参数.fg默认值()});
 					} else {	//有绑定值,添加多行
 						for (const QString &v绑定参数值 : v多参数值) {
-							f添加行(a参数, v绑定参数值);
+							va参数值.push_back({&a参数, v绑定参数值});
 						}
 					}
 				} else {	//单参数,添加一行
-					f添加行(a参数, v设置.fg绑定参数值(a参数.m名称));
+					va参数值.push_back({&a参数, v设置.fg绑定参数值(a参数.m名称)});
 				}
 			} else {	//无绑定设置,添加一行
-				f添加行(a参数, a参数.fg默认值());
+				va参数值.push_back({&a参数, a参数.fg默认值()});
 			}
 		}
 	}
+	//判断是否启用参数分组(仅当命令文件中存在分组属性)
+	bool v有分组 = false;
+	for (const auto &[v参数, v值] : va参数值) {
+		if (!v参数->m分组.isEmpty()) {
+			v有分组 = true;
+			break;
+		}
+	}
+	if (!v有分组) {	//没有任何参数分组, 不添加任何分组行(包括"其它")
+		for (const auto &[v参数, v值] : va参数值) {
+			f添加行(*v参数, v值);
+		}
+		return;
+	}
+	//按分组聚合(分组名按名称排序, "其它"放最后)
+	std::map<QString, std::vector<std::pair<const S命令参数 *, QString>>> v分组;
+	for (const auto &[v参数, v值] : va参数值) {
+		const QString v组 = v参数->m分组.isEmpty() ? c其它名 : v参数->m分组;
+		v分组[v组].push_back({v参数, v值});
+	}
+	QStringList v组名列表;
+	bool v有其它 = false;
+	for (const auto &[v名称, v列表] : v分组) {
+		if (v名称 == c其它名) {
+			v有其它 = true;
+			continue;
+		}
+		v组名列表.append(v名称);
+	}
+	std::sort(v组名列表.begin(), v组名列表.end(), [](const QString &a, const QString &b)->bool {
+		return a.compare(b, Qt::CaseInsensitive) < 0;
+	});
+	if (v有其它) {
+		v组名列表.append(c其它名);
+	}
+	for (const QString &v组名 : v组名列表) {
+		f添加分组行(v组名);
+		for (const auto &[v参数, v值] : v分组[v组名]) {
+			f添加行(*v参数, v值);
+		}
+	}
+	//垂直滚动条出现/消失时,重新调整列宽(缩短或恢复输入列)
+	f重置尺寸(w参数列表->width());
+}
+void C参数列表::f添加分组行(const QString &a组名) {	//添加参数分组行: 只显示分组名, 非参数行
+	const int v新行号 = m模型->rowCount();
+	m模型->insertRow(v新行号);
+	QLabel *const w标签 = new QLabel(a组名, w参数列表);
+	w标签->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+	w标签->setStyleSheet("font-weight:bold; background-color:#e0e0e0;");	//分组行的标签列填充浅灰背景,与普通参数行区分
+	w参数列表->setIndexWidget(m模型->index(v新行号, c标签列), w标签);
+	//输入列和删除列也填充浅灰背景
+	const QBrush v灰刷(QColor(224, 224, 224));
+	for (int v列 = c输入列; v列 != c列数; ++v列) {
+		m模型->setData(m模型->index(v新行号, v列), v灰刷, Qt::BackgroundRole);
+	}
+	//输入列和删除列留空
+	ma代理.emplace_back();	//占位, 标记为分组行(空代理)
 }
 int C参数列表::fg行数() const {
 	return m模型->rowCount();
@@ -159,7 +237,9 @@ void C参数列表::f删除行0(int a行号) {
 	for (int v列号 = 0; v列号 != c列数; ++v列号) {
 		const QModelIndex v索引 = m模型->index(a行号, v列号);
 		QWidget *const w控件 = w参数列表->indexWidget(v索引);
-		w控件->deleteLater();
+		if (w控件) {
+			w控件->deleteLater();
+		}
 		w参数列表->setIndexWidget(v索引, nullptr);
 	}
 }
@@ -175,6 +255,9 @@ void C参数列表::f清除输入(int a行号) {
 bool C参数列表::fi可执行() const {
 	bool v返回 = true;
 	for (const tp参数控件代理 &v代理 : ma代理) {
+		if (!v代理) {	//分组行, 跳过
+			continue;
+		}
 		if (v代理->m参数->m必需) {
 			if (!v代理->fi值()) {
 				v返回 = false;
@@ -192,6 +275,9 @@ C实参组 C参数列表::f生成实参组() {
 	const int v行数 = m模型->rowCount();
 	for (int i = 0; i != v行数; ++i) {
 		const tp参数控件代理 &v代理 = ma代理.at(i);
+		if (!v代理) {	//分组行, 跳过
+			continue;
+		}
 		const S命令参数 &v参数 = *v代理->m参数;
 		const QString v值 = v代理->fg值();
 		v返回.f添加(v参数, v值);

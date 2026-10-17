@@ -24,6 +24,7 @@ public:
 	E平台 fg平台() const;
 	const QString &fg用法() const;
 	const QString &fg描述() const;
+	const QString &fg分组() const;
 	std::vector<S命令参数> &fe命令参数();
 	const std::vector<S命令参数> &fe命令参数() const;
 	bool fi打开() const;
@@ -36,6 +37,7 @@ private:
 	C命令模板 m命令模板;
 	QString m用法;	//帮助文本:命令格式
 	QString m描述;	//帮助文本:命令说明
+	QString m分组;	//命令文件指定的默认分组(无则为空)
 	std::vector<S命令参数> ma命令参数;
 	E平台 m平台;	//命令可以在哪些操作系统使用,可能组合
 	bool m打开 = false;

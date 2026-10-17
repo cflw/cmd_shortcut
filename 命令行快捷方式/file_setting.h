@@ -53,6 +53,12 @@ public:
 	std::generator<QString> fe所有文件() const;
 	std::generator<QString> fe启用文件() const;
 	bool fi空() const;
+	//分组
+	std::generator<QString> fe分组名() const;	//返回所有分组名(按名称排序)
+	QString fg命令分组(const QString &命令文件名) const;	//返回命令所在分组名,无则空
+	void f构造分组(const QString &分组名);
+	void f加入分组(const QString &命令文件名, const QString &分组名);
+	void f移出分组(const QString &命令文件名);
 	C命令设置 &f构造命令();	//在启动的对比文件阶段调用
 	C命令设置 *fg命令设置(const QString &命令文件名);
 	//属性
@@ -63,6 +69,7 @@ public:
 private:
 	QString m主机名;
 	std::vector<std::unique_ptr<C命令设置>> ma命令设置;
+	std::map<QString, std::vector<QString>> ma分组;	//分组名 -> 命令文件名列表(键按名称排序)
 	E平台 m平台 = c当前平台;	//当前平台,没有组合
 	bool m编辑 = false;	//编辑标志,为true说明编辑过需要保存
 };

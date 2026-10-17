@@ -27,9 +27,10 @@ bool C命令文件::f打开(const QString &a路径) {
 	const QDomElement v根节点 = v文档.documentElement();
 	//命令
 	const QDomElement v命令节点 = v根节点.firstChildElement("命令");
-	m名称 = v命令节点.firstChildElement("名称").text();
+	m名称 = v命令节点.firstChildElement("名称").text().trimmed();
 	m平台 = f解析平台(v命令节点.firstChildElement("平台").text());
-	m用法 = v命令节点.firstChildElement("用法").text();
+	m用法 = v命令节点.firstChildElement("用法").text().trimmed();
+	m分组 = v命令节点.firstChildElement("分组").text().trimmed();
 	//形参组
 	const QDomElement v参数组节点 = v根节点.firstChildElement("参数组");
 	for (const QDomNode &v参数节点 : v参数组节点.elementsByTagName("参数")) {
@@ -58,6 +59,9 @@ const QString &C命令文件::fg用法() const {
 }
 const QString &C命令文件::fg描述() const {
 	return m描述;
+}
+const QString &C命令文件::fg分组() const {
+	return m分组;
 }
 std::vector<S命令参数> &C命令文件::fe命令参数() {
 	return ma命令参数;

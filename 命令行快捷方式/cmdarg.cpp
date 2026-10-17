@@ -43,6 +43,7 @@ S命令参数::S命令参数(const QDomElement &a参数节点) :
 	m必需(a参数节点.firstChildElement("必需").text() == "true"),
 	m绑定设置(a参数节点.firstChildElement("绑定设置").text() == "true"),
 	m多参数(a参数节点.firstChildElement("多参数").text() == "true"),
+	m分组(a参数节点.attribute("分组").trimmed()),
 	mf模板(F自动参数模板(a参数节点)) {
 	if (const QString v冲突参数s = a参数节点.firstChildElement("冲突参数").text(); !v冲突参数s.isEmpty()) {
 		for (const QString &v冲突参数 : v冲突参数s.split(",")) {

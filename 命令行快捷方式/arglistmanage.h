@@ -25,6 +25,7 @@ public:
 	int fg行数() const;
 	void f清空所有行();
 	void f添加行(const S命令参数 &参数, QString 初始值 = {});	//在末尾添加并构造
+	void f添加分组行(const QString &a组名);	//添加参数分组行(只显示分组名, 非参数行)
 	void f插入行(int 位置, const S命令参数 &参数, QString 初始值 = {});	//插入并构造
 	void f构造行(int 位置, const S命令参数 &参数, tp参数控件代理 &代理, QString 初始值 = {});
 	void f删除行(int 行号);	//从0开始

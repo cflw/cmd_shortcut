@@ -1,6 +1,7 @@
 #include "file_setting.h"
 #include <QFile>
 #include <QSysInfo>
+#include <algorithm>
 #include "xml_utility.h"
 #include "argtemplate.h"
 #include "file_command.h"
@@ -130,6 +131,18 @@ bool C设置文件::f打开(const QString &a路径) {
 	for (const QDomNode v命令节点 : v命令组节点.elementsByTagName("命令")) {
 		ma命令设置.emplace_back(std::make_unique<C命令设置>(v命令节点.toElement()));
 	}
+	//分组
+	const QDomElement v分组组节点 = v根节点.firstChildElement("命令分组");
+	if (!v分组组节点.isNull()) {
+		for (const QDomNode v分组节点 : v分组组节点.elementsByTagName("分组")) {
+			const QDomElement v分组元素 = v分组节点.toElement();
+			const QString v组名 = v分组元素.attribute("名称");
+			std::vector<QString> &v列表 = ma分组[v组名];
+			for (const QDomNode v命令节点 : v分组元素.elementsByTagName("命令")) {
+				v列表.push_back(v命令节点.toElement().attribute("文件名"));
+			}
+		}
+	}
 	return true;
 }
 bool C设置文件::f保存(const QString &a路径) {
@@ -157,6 +170,22 @@ QDomDocument C设置文件::ft文档() const {
 		v命令组节点.appendChild(v命令节点);
 	}
 	v根节点.appendChild(v命令组节点);
+	//分组
+	QDomElement v分组组节点 = v文档.createElement("命令分组");
+	for (const auto &[v组名, v列表] : ma分组) {
+		if (v列表.empty()) {
+			continue;	//不保存空分组
+		}
+		QDomElement v分组元素 = v文档.createElement("分组");
+		v分组元素.setAttribute("名称", v组名);
+		for (const QString &v文件名 : v列表) {
+			QDomElement v命令元素 = v文档.createElement("命令");
+			v命令元素.setAttribute("文件名", v文件名);
+			v分组元素.appendChild(v命令元素);
+		}
+		v分组组节点.appendChild(v分组元素);
+	}
+	v根节点.appendChild(v分组组节点);
 	//返回
 	return v文档;
 }
@@ -267,5 +296,48 @@ void C设置文件::f更新工作目录(const C命令文件 &a命令文件, cons
 	if (vp命令设置->m工作目录 != a工作目录) {
 		vp命令设置->m工作目录 = a工作目录;
 		m编辑 |= true;
+	}
+}
+//==============================================================================
+// 分组
+//==============================================================================
+std::generator<QString> C设置文件::fe分组名() const {
+	for (const auto &[v组名, v列表] : ma分组) {
+		co_yield v组名;
+	}
+}
+QString C设置文件::fg命令分组(const QString &a命令文件名) const {
+	for (const auto &[v组名, v列表] : ma分组) {
+		if (std::find(v列表.begin(), v列表.end(), a命令文件名) != v列表.end()) {
+			return v组名;
+		}
+	}
+	return QString();
+}
+void C设置文件::f构造分组(const QString &a分组名) {
+	if (ma分组.find(a分组名) != ma分组.end()) {
+		return;
+	}
+	ma分组[a分组名];	//创建空分组
+	m编辑 = true;
+}
+void C设置文件::f加入分组(const QString &a命令文件名, const QString &a分组名) {
+	//先从所有分组移除该命令
+	for (auto &[v组名, v列表] : ma分组) {
+		const auto v找 = std::find(v列表.begin(), v列表.end(), a命令文件名);
+		if (v找 != v列表.end()) {
+			v列表.erase(v找);
+		}
+	}
+	ma分组[a分组名].push_back(a命令文件名);
+	m编辑 = true;
+}
+void C设置文件::f移出分组(const QString &a命令文件名) {
+	for (auto &[v组名, v列表] : ma分组) {
+		const auto v找 = std::find(v列表.begin(), v列表.end(), a命令文件名);
+		if (v找 != v列表.end()) {
+			v列表.erase(v找);
+			m编辑 = true;
+		}
 	}
 }

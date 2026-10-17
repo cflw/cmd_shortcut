@@ -40,6 +40,7 @@ public:
 	bool m必需 = false;	//参数不可缺少,否则命令无效
 	bool m绑定设置 = false;	//参数值保存到设置文件中
 	bool m多参数 = false;	//是否可以指定多个同名参数
+	QString m分组;	//参数分组(来自命令文件<参数>的分组属性, 空表示未分组)
 	QStringList ma冲突参数;
 	std::vector<S组合框选项> ma选项;	//参数类型=选项 用到
 };

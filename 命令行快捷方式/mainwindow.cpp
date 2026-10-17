@@ -1,5 +1,7 @@
 #include "mainwindow.h"
 #include <ranges>
+#include <algorithm>
+#include <set>
 #include <QMessageBox>
 #include <QCloseEvent>
 #include <QStringListModel>
@@ -8,6 +10,14 @@
 #include <QCheckBox>
 #include <QTimer>
 #include <QFileDialog>
+#include <QMenu>
+#include <QAction>
+#include <QInputDialog>
+#include <QStandardItem>
+#include <QApplication>
+#include <QStyledItemDelegate>
+#include <QStyle>
+#include <QPainter>
 #include "ui_mainwindow.h"
 #include "file_setting.h"
 #include "file_command.h"
@@ -15,14 +25,50 @@
 #include "outmanage.h"
 #include "cmdmanage.h"
 //==============================================================================
+// 常量
+//==============================================================================
+static const QString c未分组名 = "未分组";
+//==============================================================================
+// 命令列表代理: 取消命令行的缩进(分组行保留缩进以显示折叠/展开按钮)
+//==============================================================================
+class C命令列表代理 : public QStyledItemDelegate {
+public:
+	C命令列表代理(QTreeView *a视图, QObject *a父 = nullptr): QStyledItemDelegate(a父), m视图(a视图) {}
+	void paint(QPainter *a画笔, const QStyleOptionViewItem &a选项, const QModelIndex &a索引) const override {
+		if (a索引.parent().isValid()) {	//命令行(子项): 取消缩进, 文字对齐到行首
+			QStyleOptionViewItem v背景 = a选项;
+			v背景.rect.adjust(-m视图->indentation(), 0, 0, 0);	//背景覆盖到行首, 避免左侧出现间隙
+			v背景.text.clear();
+			v背景.icon = QIcon();
+			QApplication::style()->drawControl(QStyle::CE_ItemViewItem, &v背景, a画笔, m视图);
+			QStyleOptionViewItem v文字 = a选项;
+			v文字.rect.adjust(-m视图->indentation(), 0, 0, 0);
+			QPalette::ColorGroup v组 = (a选项.state & QStyle::State_Enabled) ? QPalette::Normal : QPalette::Disabled;
+			if (v组 == QPalette::Normal && !(a选项.state & QStyle::State_Active)) {
+				v组 = QPalette::Inactive;
+			}
+			const QColor v色 = a选项.palette.color(v组, QPalette::Text);
+			a画笔->setPen(v色);
+			a画笔->setFont(a选项.font);
+			const QString v文本 = a选项.fontMetrics.elidedText(a索引.data(Qt::DisplayRole).toString(), a选项.textElideMode, v文字.rect.width());
+			a画笔->drawText(v文字.rect, a选项.displayAlignment, v文本);
+			return;
+		}
+		QStyledItemDelegate::paint(a画笔, a选项, a索引);
+	}
+private:
+	QTreeView *m视图;
+};
+//==============================================================================
 // 主窗口
 //==============================================================================
 MainWindow::MainWindow(QWidget *parent):
 	QMainWindow(parent), ui(new Ui::MainWindow),
-	m命令列表模型(new QStringListModel(this))
+	m命令列表模型(new QStandardItemModel(this))
 {
     ui->setupUi(this);
 	ui->w_cmdlist->setModel(m命令列表模型.get());
+	ui->w_cmdlist->setItemDelegate(new C命令列表代理(ui->w_cmdlist, this));
 	m参数列表 = std::make_unique<C参数列表>(*this);
 	m输出管理 = std::make_unique<C输出管理>(*ui->w_out);
 	m命令管理 = std::make_unique<C命令管理>(this, *m输出管理);
@@ -30,6 +76,21 @@ MainWindow::MainWindow(QWidget *parent):
 	//connect(ui->w_exec, &QToolButton::clicked, this, &MainWindow::on_w_exec_clicked);
 	connect(ui->w_cmdlist->selectionModel(), &QItemSelectionModel::currentChanged,
 			this, &MainWindow::on_w_cmdlist_currentChanged);
+	//右键菜单
+	ui->w_cmdlist->setContextMenuPolicy(Qt::CustomContextMenu);
+	connect(ui->w_cmdlist, &QTreeView::customContextMenuRequested,
+			this, &MainWindow::f命令列表_右键菜单);
+	//折叠状态跟踪
+	connect(ui->w_cmdlist, &QTreeView::collapsed, this, [this](const QModelIndex &a索引) {
+		if (QStandardItem *const v项 = m命令列表模型->itemFromIndex(a索引)) {
+			ma折叠分组.insert(v项->text());
+		}
+	});
+	connect(ui->w_cmdlist, &QTreeView::expanded, this, [this](const QModelIndex &a索引) {
+		if (QStandardItem *const v项 = m命令列表模型->itemFromIndex(a索引)) {
+			ma折叠分组.remove(v项->text());
+		}
+	});
 	QTimer::singleShot(0, [this]() {	//主窗口显示后的初始化
 		m参数列表->f重置尺寸(ui->w_arglist->width());
 	});
@@ -96,13 +157,65 @@ void MainWindow::f刷新命令列表() {	//在载入文件后调用,只调用一
 		return a->fg名称().compare(b->fg名称(), Qt::CaseInsensitive) < 0;
 	});
 	//设置列表
-	QStringList v命令列表;
-	for (const C命令文件 *vp命令文件 : va命令文件) {
-		v命令列表 << vp命令文件->fg名称();
-	}
-	m命令列表模型->setStringList(v命令列表);
-	//结束
 	ma启用命令 = std::move(va命令文件);
+	f重建命令树();
+}
+void MainWindow::f重建命令树() {	//根据启用命令和分组设置重建左侧树
+	const C命令文件 *const v原当前 = m当前命令;
+	//按分组收集命令: 分组优先级为 设置文件 > 命令文件默认分组 > 未分组
+	std::map<QString, QList<const C命令文件 *>> v分组命令;
+	for (const C命令文件 *vp命令 : ma启用命令) {
+		QString v组 = m设置文件->fg命令分组(vp命令->fg文件名());
+		if (v组.isEmpty()) {
+			v组 = vp命令->fg分组();
+		}
+		if (v组.isEmpty()) {
+			v组 = c未分组名;
+		}
+		v分组命令[v组].append(vp命令);
+	}
+	//分组名排序(未分组放在最后)
+	QStringList v组名列表;
+	bool v有未分组 = false;
+	for (const auto &[v名称, v列表] : v分组命令) {
+		if (v名称 == c未分组名) {
+			v有未分组 = true;
+			continue;
+		}
+		v组名列表.append(v名称);
+	}
+	std::sort(v组名列表.begin(), v组名列表.end(), [](const QString &a, const QString &b)->bool {
+		return a.compare(b, Qt::CaseInsensitive) < 0;
+	});
+	if (v有未分组) {
+		v组名列表.append(c未分组名);
+	}
+	//重建模型
+	m命令列表模型->clear();
+	QModelIndex v新当前索引;
+	for (const QString &v组名 : v组名列表) {
+		QStandardItem *const v组项 = new QStandardItem(v组名);
+		v组项->setFlags(Qt::ItemIsEnabled);	//分组行不可作为命令选中
+		QList<const C命令文件 *> v命令列表 = v分组命令[v组名];
+		std::sort(v命令列表.begin(), v命令列表.end(), [](const C命令文件 *a, const C命令文件 *b)->bool {
+			return a->fg名称().compare(b->fg名称(), Qt::CaseInsensitive) < 0;
+		});
+		for (const C命令文件 *vp命令 : v命令列表) {
+			QStandardItem *const v命令项 = new QStandardItem(vp命令->fg名称());
+			v命令项->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+			v命令项->setData(QVariant::fromValue(static_cast<quint64>(reinterpret_cast<quintptr>(vp命令))), Qt::UserRole);
+			v组项->appendRow(v命令项);
+			if (vp命令 == v原当前) {
+				v新当前索引 = v命令项->index();
+			}
+		}
+		m命令列表模型->appendRow(v组项);
+		ui->w_cmdlist->setExpanded(v组项->index(), !ma折叠分组.contains(v组名));	//默认展开
+	}
+	//恢复当前选择
+	if (v新当前索引.isValid()) {
+		ui->w_cmdlist->setCurrentIndex(v新当前索引);
+	}
 }
 C实参组 &MainWindow::f生成实参组() {
 	return ma记忆实参[m当前命令] = m参数列表->f生成实参组();
@@ -176,7 +289,12 @@ void MainWindow::on_w_cmdlist_currentChanged(const QModelIndex &current, const Q
 		f更新设置();
 	}
 	if (current.isValid()) {
-		const C命令文件 *const vp命令 = ma启用命令.at(current.row());
+		const quint64 v指针 = current.data(Qt::UserRole).value<quint64>();
+		const C命令文件 *const vp命令 = v指针 ? reinterpret_cast<const C命令文件 *>(v指针) : nullptr;
+		if (!vp命令) {	//分组行,不是命令
+			return;
+		}
+		m当前命令 = vp命令;
 		if (auto vp记忆实参 = ma记忆实参.find(vp命令); vp记忆实参 != ma记忆实参.end()) {
 			m参数列表->f刷新列表(*vp命令, &vp记忆实参->second);
 		} else {
@@ -187,4 +305,78 @@ void MainWindow::on_w_cmdlist_currentChanged(const QModelIndex &current, const Q
 	} else {
 
 	}
+}
+//==============================================================================
+// 命令分组
+//==============================================================================
+std::vector<QString> MainWindow::f命令分组_g所有分组名() const {
+	std::set<QString> v组;	//按名称排序且去重
+	auto f获取分组名 = [this](const C命令文件 *a命令)->QString {
+		QString v组名 = m设置文件->fg命令分组(a命令->fg文件名());
+		if (!v组名.isEmpty()) {
+			return v组名;
+		}
+		v组名 = a命令->fg分组();
+		if (!v组名.isEmpty()) {
+			return v组名;
+		}
+		return c未分组名;
+	};
+	for (const C命令文件 *vp命令 : ma启用命令) {
+		if (const QString v组名 = f获取分组名(vp命令); v组名 != c未分组名) {
+			v组.insert(v组名);
+		}
+	}
+	std::vector<QString> v结果;
+	v结果.reserve(v组.size());
+	for (const QString &v名称 : v组) {
+		v结果.push_back(v名称);
+	}
+	return v结果;
+}
+void MainWindow::f命令列表_右键菜单(const QPoint &a位置) {
+	QModelIndex v索引 = ui->w_cmdlist->indexAt(a位置);
+	if (!v索引.isValid()) {
+		return;
+	}
+	const quint64 v指针 = v索引.data(Qt::UserRole).value<quint64>();
+	const C命令文件 *const vp命令 = v指针 ? reinterpret_cast<const C命令文件 *>(v指针) : nullptr;
+	if (!vp命令) {	//分组行不弹出菜单
+		return;
+	}
+	QMenu w菜单(this);
+	//加入分组子菜单,前面是分组名,中间分隔线,后面是新建分组和移出分组
+	QMenu *const w加入分组 = w菜单.addMenu("加入分组");
+	for (const QString &v组名 : f命令分组_g所有分组名()) {
+		QAction *const v动作 = w加入分组->addAction(v组名);
+		connect(v动作, &QAction::triggered, this, [this, vp命令, v组名]() { f命令分组_把命令加入分组(vp命令, v组名); });
+	}
+	w加入分组->addSeparator();
+	QAction *const v新建 = w加入分组->addAction("新建分组...");
+	connect(v新建, &QAction::triggered, this, [this, vp命令]() { f命令分组_新建分组并加入(vp命令); });
+	QAction *const v移出 = w加入分组->addAction("移出分组");
+	connect(v移出, &QAction::triggered, this, [this, vp命令]() { f命令分组_把命令移出分组(vp命令); });
+	w菜单.exec(ui->w_cmdlist->viewport()->mapToGlobal(a位置));
+}
+void MainWindow::f命令分组_把命令加入分组(const C命令文件 *a命令, const QString &a组名) {
+	m设置文件->f加入分组(a命令->fg文件名(), a组名);
+	f重建命令树();
+	f保存设置();
+}
+void MainWindow::f命令分组_新建分组并加入(const C命令文件 *a命令) {
+	bool v确定 = false;
+	const QString v名称 = QInputDialog::getText(this, "新建分组", "请输入分组名称:", QLineEdit::Normal, QString(), &v确定);
+	if (!v确定 || v名称.trimmed().isEmpty()) {
+		return;
+	}
+	const QString v组名 = v名称.trimmed();
+	m设置文件->f构造分组(v组名);
+	m设置文件->f加入分组(a命令->fg文件名(), v组名);
+	f重建命令树();
+	f保存设置();
+}
+void MainWindow::f命令分组_把命令移出分组(const C命令文件 *a命令) {
+	m设置文件->f移出分组(a命令->fg文件名());
+	f重建命令树();
+	f保存设置();
 }

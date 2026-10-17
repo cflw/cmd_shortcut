@@ -84,12 +84,15 @@
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="1,3">
       <item>
-       <widget class="QListView" name="w_cmdlist">
+       <widget class="QTreeView" name="w_cmdlist">
         <property name="baseSize">
          <size>
           <width>0</width>
           <height>0</height>
          </size>
+        </property>
+        <property name="contextMenuPolicy">
+         <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
         </property>
         <property name="editTriggers">
          <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
@@ -97,6 +100,12 @@
         <property name="defaultDropAction">
          <enum>Qt::DropAction::IgnoreAction</enum>
         </property>
+        <property name="indentation">
+         <number>20</number>
+        </property>
+        <attribute name="headerVisible">
+         <bool>false</bool>
+        </attribute>
        </widget>
       </item>
       <item>
