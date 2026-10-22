@@ -28,9 +28,17 @@ void C命令管理::f调度命令() {
 void C命令管理::f开始命令(const S待执行命令 &a命令) {
 	m输出->f输出行("================================================================================");
 	m输出->f输出行(a命令.m命令);
-	const QStringList va字符串 = a命令.m命令.split(' ');
 	m执行进程->setWorkingDirectory(a命令.m工作目录);
-	m执行进程->start(va字符串.front(), va字符串.sliced(1));	//start()需要将程序和参数分离才能正常运行
+	if (a命令.m命令.contains('|') || a命令.m命令.contains('&')) {	//含管道符号或连续执行符号,交给系统 shell 执行,使管道数据在进程间正确传递
+#ifdef Q_OS_WIN
+		m执行进程->start("cmd.exe", QStringList() << "/c" << a命令.m命令);
+#else
+		m执行进程->start("sh", QStringList() << "-c" << a命令.m命令);
+#endif
+	} else {	//无管道,按原方式将程序和参数分离执行
+		const QStringList va字符串 = a命令.m命令.split(' ');
+		m执行进程->start(va字符串.front(), va字符串.sliced(1));	//start()需要将程序和参数分离才能正常运行
+	}
 }
 //槽
 void C命令管理::onReadyReadOutput() {

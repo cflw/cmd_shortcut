@@ -24,6 +24,8 @@
 #include "arglistmanage.h"
 #include "outmanage.h"
 #include "cmdmanage.h"
+#include "argtemplate.h"
+#include <utility>
 //==============================================================================
 // 常量
 //==============================================================================
@@ -131,14 +133,14 @@ void MainWindow::f载入文件() {
 	//结束
 	f保存设置();
 }
-void MainWindow::f刷新命令列表() {	//在载入文件后调用,只调用一次
+void MainWindow::f刷新命令列表(bool a重新打开) {	//在载入文件后窗口显示后调用,或者命令列表框刷新时调用
 	if (m设置文件->fi空()) {
 		m输出管理->f输出行("警告: 无命令");
 	}
 	//打开命令文件,并关联设置与命令
 	std::vector<const C命令文件 *> va命令文件;
 	for (C命令设置 &v命令设置 : m设置文件->fe启用命令()) {
-		if (C命令文件 *const vp命令文件 = m命令文件缓存->f打开(v命令设置.m文件名)) {
+		if (C命令文件 *const vp命令文件 = m命令文件缓存->f打开(v命令设置.m文件名, a重新打开)) {
 			va命令文件.push_back(vp命令文件);
 			vp命令文件->fs设置(v命令设置);
 			for (S命令参数 &v命令参数 : vp命令文件->fe命令参数()) {
@@ -159,6 +161,107 @@ void MainWindow::f刷新命令列表() {	//在载入文件后调用,只调用一
 	//设置列表
 	ma启用命令 = std::move(va命令文件);
 	f重建命令树();
+}
+void MainWindow::f重新载入命令() {	//重新扫描命令目录已启用的命令文件,重新加载并刷新列表框
+	//保存当前命令设置,并采集所有命令的记忆实参(按文件名)用于刷新后恢复
+	if (m设置文件) {
+		f更新设置();
+		f保存设置();
+	}
+	const QString v当前文件名 = m当前命令 ? m当前命令->fg文件名() : QString();
+	const std::map<QString, std::vector<std::pair<QString, QString>>> v全部记忆 = f备份所有记忆();
+	//重新加载会销毁旧的命令文件对象,旧的选择指针和实参记忆均已失效,先清空
+	f清空命令列表();
+	f刷新命令列表(true);
+	//恢复所有命令的记忆实参,再恢复当前选择的命令
+	f恢复所有记忆(v全部记忆);
+	f恢复选择命令(v当前文件名);
+}
+std::map<QString, std::vector<std::pair<QString, QString>>> MainWindow::f备份所有记忆() const {	//采集所有命令的记忆实参,按文件名分类
+	std::map<QString, std::vector<std::pair<QString, QString>>> v返回;
+	for (const auto &[vp命令, v实参组] : ma记忆实参) {
+		std::vector<std::pair<QString, QString>> v列表;
+		v列表.reserve(v实参组.ma参数值.size());
+		for (const S参数记忆 &v记忆 : v实参组.ma参数值) {
+			if (v记忆.m参数) {
+				v列表.emplace_back(v记忆.m参数->m名称, v记忆.m值);
+			}
+		}
+		v返回[vp命令->fg文件名()] = std::move(v列表);
+	}
+	return v返回;
+}
+void MainWindow::f清空命令列表() {	//清空当前选择与记忆,避免悬空引用
+	m当前命令 = nullptr;
+	ma记忆实参.clear();
+	m参数列表->f清空所有行();	//清空参数面板,避免其控件仍持有旧命令的引用
+	ui->w_cmd->setText(QString());
+}
+C实参组 MainWindow::f恢复记忆实参(const C命令文件 *a命令, const std::vector<std::pair<QString, QString>> &a列表) const {	//用新命令参数指针重建记忆实参
+	C实参组 v返回;
+	std::map<QString, int> v已用;	//每个参数名已匹配的次数,用于区分多参数
+	for (const auto &[v名, v值] : a列表) {
+		int v序号 = 0;
+		for (const S命令参数 &v参数 : a命令->fe命令参数()) {
+			if (v参数.m名称 == v名) {
+				if (v序号 == v已用[v名]) {
+					v返回.f添加(v参数, v值);
+					++v已用[v名];
+					break;
+				}
+				++v序号;
+			}
+		}
+	}
+	return v返回;
+}
+QModelIndex MainWindow::f查找命令索引(const C命令文件 *a命令) const {	//在命令树中查找命令对应的索引
+	for (int i = 0; i != m命令列表模型->rowCount(); ++i) {
+		QStandardItem *const v组项 = m命令列表模型->item(i);
+		if (!v组项) {
+			continue;
+		}
+		for (int j = 0; j != v组项->rowCount(); ++j) {
+			QStandardItem *const v命令项 = v组项->child(j);
+			if (v命令项 && v命令项->data(Qt::UserRole).value<quint64>() == reinterpret_cast<quintptr>(a命令)) {
+				return v命令项->index();
+			}
+		}
+	}
+	return QModelIndex();
+}
+void MainWindow::f恢复所有记忆(const std::map<QString, std::vector<std::pair<QString, QString>>> &a全部) {	//刷新后恢复所有命令的记忆实参
+	for (const auto &[v文件名, v列表] : a全部) {
+		const C命令文件 *vp新命令 = nullptr;
+		for (const C命令文件 *vp命令 : ma启用命令) {
+			if (vp命令->fg文件名() == v文件名) {
+				vp新命令 = vp命令;
+				break;
+			}
+		}
+		if (vp新命令) {
+			ma记忆实参[vp新命令] = f恢复记忆实参(vp新命令, v列表);
+		}
+	}
+}
+void MainWindow::f恢复选择命令(const QString &a文件名) {	//刷新后恢复当前选择的命令(记忆实参已由 f恢复所有记忆 恢复)
+	if (a文件名.isEmpty()) {
+		return;
+	}
+	const C命令文件 *vp新命令 = nullptr;
+	for (const C命令文件 *vp命令 : ma启用命令) {
+		if (vp命令->fg文件名() == a文件名) {
+			vp新命令 = vp命令;
+			break;
+		}
+	}
+	if (!vp新命令) {
+		return;
+	}
+	const QModelIndex v索引 = f查找命令索引(vp新命令);
+	if (v索引.isValid()) {
+		ui->w_cmdlist->setCurrentIndex(v索引);	//触发界面刷新恢复参数
+	}
 }
 void MainWindow::f重建命令树() {	//根据启用命令和分组设置重建左侧树
 	const C命令文件 *const v原当前 = m当前命令;
@@ -218,9 +321,16 @@ void MainWindow::f重建命令树() {	//根据启用命令和分组设置重建�
 	}
 }
 C实参组 &MainWindow::f生成实参组() {
+	if (!m当前命令) {	//无选择命令时返回空实参组
+		static C实参组 v空实参组;
+		return v空实参组;
+	}
 	return ma记忆实参[m当前命令] = m参数列表->f生成实参组();
 }
 void MainWindow::f刷新命令框() {	//生成命令
+	if (!m当前命令) {	//无选择命令时不生成
+		return;
+	}
 	//生成命令
 	const QString v命令 = m当前命令->f生成(f生成实参组());
 	ui->w_cmd->setText(v命令);
@@ -336,26 +446,28 @@ std::vector<QString> MainWindow::f命令分组_g所有分组名() const {
 }
 void MainWindow::f命令列表_右键菜单(const QPoint &a位置) {
 	QModelIndex v索引 = ui->w_cmdlist->indexAt(a位置);
-	if (!v索引.isValid()) {
-		return;
-	}
-	const quint64 v指针 = v索引.data(Qt::UserRole).value<quint64>();
+	//解析右键的命令(空白处或分组行无命令)
+	const quint64 v指针 = v索引.isValid() ? v索引.data(Qt::UserRole).value<quint64>() : 0;
 	const C命令文件 *const vp命令 = v指针 ? reinterpret_cast<const C命令文件 *>(v指针) : nullptr;
-	if (!vp命令) {	//分组行不弹出菜单
-		return;
-	}
 	QMenu w菜单(this);
-	//加入分组子菜单,前面是分组名,中间分隔线,后面是新建分组和移出分组
-	QMenu *const w加入分组 = w菜单.addMenu("加入分组");
-	for (const QString &v组名 : f命令分组_g所有分组名()) {
-		QAction *const v动作 = w加入分组->addAction(v组名);
-		connect(v动作, &QAction::triggered, this, [this, vp命令, v组名]() { f命令分组_把命令加入分组(vp命令, v组名); });
+	//刷新按钮: 无论右击命令还是空白处都显示
+	QAction *const v刷新 = w菜单.addAction("刷新");
+	connect(v刷新, &QAction::triggered, this, &MainWindow::f重新载入命令);
+	w菜单.addSeparator();
+	//右击命令才会显示的按钮
+	if (vp命令) {
+		//加入分组子菜单,前面是分组名,中间分隔线,后面是新建分组和移出分组
+		QMenu *const w加入分组 = w菜单.addMenu("加入分组");
+		for (const QString &v组名 : f命令分组_g所有分组名()) {
+			QAction *const v动作 = w加入分组->addAction(v组名);
+			connect(v动作, &QAction::triggered, this, [this, vp命令, v组名]() { f命令分组_把命令加入分组(vp命令, v组名); });
+		}
+		w加入分组->addSeparator();
+		QAction *const v新建 = w加入分组->addAction("新建分组...");
+		connect(v新建, &QAction::triggered, this, [this, vp命令]() { f命令分组_新建分组并加入(vp命令); });
+		QAction *const v移出 = w加入分组->addAction("移出分组");
+		connect(v移出, &QAction::triggered, this, [this, vp命令]() { f命令分组_把命令移出分组(vp命令); });
 	}
-	w加入分组->addSeparator();
-	QAction *const v新建 = w加入分组->addAction("新建分组...");
-	connect(v新建, &QAction::triggered, this, [this, vp命令]() { f命令分组_新建分组并加入(vp命令); });
-	QAction *const v移出 = w加入分组->addAction("移出分组");
-	connect(v移出, &QAction::triggered, this, [this, vp命令]() { f命令分组_把命令移出分组(vp命令); });
 	w菜单.exec(ui->w_cmdlist->viewport()->mapToGlobal(a位置));
 }
 void MainWindow::f命令分组_把命令加入分组(const C命令文件 *a命令, const QString &a组名) {

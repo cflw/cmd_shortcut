@@ -18,6 +18,7 @@ std::generator<QString> C命令文件::fe所有文件() {
 bool C命令文件::f打开(const QString &a路径) {
 	g当前打开命令 = this;
 	m文件名 = QFileInfo(a路径).fileName();
+	ma命令参数.clear();	//清空旧的形参,避免重新打开时重复累积
 	//打开文档
 	QDomDocument v文档;
 	if (!openXmlWithDom(a路径, v文档)) {
@@ -84,10 +85,13 @@ const C命令设置 &C命令文件::fg设置() const {
 //==============================================================================
 // 命令文件缓存
 //==============================================================================
-C命令文件 *C命令文件缓存::f打开(const QString &a文件名) {
+C命令文件 *C命令文件缓存::f打开(const QString &a文件名, bool a重新打开) {
 	if (auto iter = ma命令文件.find(a文件名); iter != ma命令文件.end()) {
 		const std::unique_ptr<C命令文件> &vp命令文件 = iter->second;
 		g当前打开命令 = vp命令文件.get();
+		if (a重新打开) {
+			vp命令文件->f打开(C命令文件::c命令目录.filePath(a文件名));
+		}
 		return vp命令文件->fi打开() ? vp命令文件.get() : nullptr;
 	}
 	C命令文件 *v新文件 = new C命令文件();

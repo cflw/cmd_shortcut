@@ -45,7 +45,7 @@ private:
 };
 class C命令文件缓存 {	//命令文件可能多次打开,所以写一个可以缓存命令文件的类
 public:
-	C命令文件 *f打开(const QString &文件名);
+	C命令文件 *f打开(const QString &文件名, bool 重新打开 = false);
 private:
 	std::map<QString, std::unique_ptr<C命令文件>> ma命令文件;
 };

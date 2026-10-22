@@ -7,6 +7,7 @@
 #include <QMainWindow>
 #include <QSet>
 #include <QStandardItemModel>
+#include <utility>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -18,6 +19,7 @@ class C命令文件;
 class C命令文件缓存;
 class C实参组;
 class C输出管理;
+struct S命令参数;
 class C命令管理;
 class MainWindow : public QMainWindow
 {
@@ -28,9 +30,18 @@ public:
     ~MainWindow();
 private:
 	void f载入文件();
-	void f刷新命令列表();
+	void f刷新命令列表(bool 重新打开 = false);	//刷新左侧的命令列表
+	//下面几个函数都是重新载入命令用的函数
+	void f重新载入命令();	//重新扫描命令目录并刷新命令列表框
+	std::map<QString, std::vector<std::pair<QString, QString>>> f备份所有记忆() const;	//采集所有命令的记忆实参{文件名:[(参数名,值)]},用于刷新后恢复
+	void f清空命令列表();	//清空当前选择与记忆,避免悬空引用
+	C实参组 f恢复记忆实参(const C命令文件 *a命令, const std::vector<std::pair<QString, QString>> &a列表) const;	//用新命令参数指针重建记忆实参
+	QModelIndex f查找命令索引(const C命令文件 *a命令) const;	//在命令树中查找命令对应的索引
+	void f恢复所有记忆(const std::map<QString, std::vector<std::pair<QString, QString>>> &a全部);	//刷新后恢复所有命令的记忆实参
+	void f恢复选择命令(const QString &a文件名);	//刷新后恢复当前选择的命令(记忆实参已恢复)
+	//其他操作
 	C实参组 &f生成实参组();	//生成实参组,刷新缓存
-	void f刷新命令框();
+	void f刷新命令框();	//刷新顶部的命令框
 	QString fg命令() const;	//返回命令框的文本
 	void fs工作目录(const QString &);
 	QString fg工作目录() const;	//返回工作目录框的文本
