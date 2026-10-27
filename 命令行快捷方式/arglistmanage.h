@@ -7,6 +7,7 @@
 #include "arginterface.h"
 class QTableView;
 class QPushButton;
+class QEvent;
 class MainWindow;
 struct S命令参数;
 class C命令文件;
@@ -31,6 +32,7 @@ public:
 	void f删除行(int 行号);	//从0开始
 	void f删除行0(int 行号);	//只删除控件
 	void f删除行1(int 行号);	//删除指定行(不删除控件)和附加数据,后面控件往前挪
+	void f更新删除按钮图标(const S命令参数 &参数);	//单参数或单行多参数显示刷新图标,多行多参数显示删除图标
 	bool fi可执行() const;	//必需参数是否都已填写
 	void f清除输入(int 行号);
 	C实参组 f生成实参组();	//创建临时对象
@@ -43,6 +45,8 @@ public slots:
 	void on_argedit_returnPress();
 	void on_argedit_setMoreText(const QStringList &);
 	void on_argcombobox_currentIndexChanged(int);
+protected:
+	bool eventFilter(QObject *a对象, QEvent *a事件) override;	//监听垂直滚动条的显示/隐藏
 private:
 	MainWindow *w主窗口 = nullptr;
 	QTableView *w参数列表 = nullptr;

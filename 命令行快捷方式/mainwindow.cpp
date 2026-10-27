@@ -199,18 +199,24 @@ void MainWindow::f清空命令列表() {	//清空当前选择与记忆,避免悬
 }
 C实参组 MainWindow::f恢复记忆实参(const C命令文件 *a命令, const std::vector<std::pair<QString, QString>> &a列表) const {	//用新命令参数指针重建记忆实参
 	C实参组 v返回;
-	std::map<QString, int> v已用;	//每个参数名已匹配的次数,用于区分多参数
+	std::map<QString, int> v已用;	//每个参数名已匹配的次数,用于区分同名参数
 	for (const auto &[v名, v值] : a列表) {
+		const S命令参数 *vp匹配 = nullptr;
 		int v序号 = 0;
 		for (const S命令参数 &v参数 : a命令->fe命令参数()) {
-			if (v参数.m名称 == v名) {
-				if (v序号 == v已用[v名]) {
-					v返回.f添加(v参数, v值);
-					++v已用[v名];
-					break;
-				}
-				++v序号;
+			if (v参数.m名称 != v名) {
+				continue;
 			}
+			//多参数的所有值都归到同一个参数(否则同名多值只会保留一个),其它参数按出现次序匹配同名参数
+			if (v参数.m多参数 || v序号 == v已用[v名]) {
+				vp匹配 = &v参数;
+				break;
+			}
+			++v序号;
+		}
+		if (vp匹配) {
+			v返回.f添加(*vp匹配, v值);
+			++v已用[v名];
 		}
 	}
 	return v返回;
@@ -379,6 +385,11 @@ void MainWindow::on_w_copy_clicked() {
 void MainWindow::on_w_exec_clicked() {
 	if (m参数列表->fi可执行()) {
 		m命令管理->f添加命令({fg命令(), fg工作目录()});
+	}
+}
+void MainWindow::on_w_stop_clicked() {
+	if (m命令管理->fi正在执行()) {
+		m命令管理->f停止命令();
 	}
 }
 void MainWindow::on_w_selectworkdir_clicked() {

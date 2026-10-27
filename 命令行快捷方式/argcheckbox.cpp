@@ -1,4 +1,5 @@
 #include "argcheckbox.h"
+#include "cmdarg.h"
 C参数复选框代理::C参数复选框代理(QCheckBox &a控件):
 	w复选框(&a控件) {
 }
@@ -31,5 +32,5 @@ void C参数复选框代理::fs颜色(E颜色 a颜色) const {
     }
 }
 void C参数复选框代理::f清除输入() const {
-    w复选框->setChecked(false);
+    w复选框->setChecked(m参数->fg默认值() == "true");	//恢复为命令文件中指定的默认值
 }

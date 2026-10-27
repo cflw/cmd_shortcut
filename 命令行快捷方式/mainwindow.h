@@ -61,6 +61,7 @@ protected:
 private slots:	//qt槽函数不能用中文
     void on_w_copy_clicked();
 	void on_w_exec_clicked();
+	void on_w_stop_clicked();
 	void on_w_selectworkdir_clicked();
 	void on_w_cmdlist_currentChanged(const QModelIndex &at, const QModelIndex &previous);
 private:

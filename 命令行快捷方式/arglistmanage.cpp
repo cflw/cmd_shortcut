@@ -4,6 +4,8 @@
 #include <QStandardItemModel>
 #include <QComboBox>
 #include <QScrollBar>
+#include <QEvent>
+#include <QIcon>
 #include <algorithm>
 #include <vector>
 #include <utility>
@@ -29,6 +31,14 @@ C参数列表::C参数列表(MainWindow &a主窗口):
 	m模型->setHeaderData(c标签列, Qt::Horizontal, "参数名");
 	m模型->setHeaderData(c输入列, Qt::Horizontal, "参数值");
 	m模型->setHeaderData(c删除列, Qt::Horizontal, "删除");
+	//垂直滚动条显示/隐藏时,重新设置列宽(缩短或恢复输入列)
+	w参数列表->verticalScrollBar()->installEventFilter(this);
+}
+bool C参数列表::eventFilter(QObject *a对象, QEvent *a事件) {
+	if (a对象 == w参数列表->verticalScrollBar() && (a事件->type() == QEvent::Show || a事件->type() == QEvent::Hide)) {
+		f重置尺寸(w参数列表->width());	//可见性变化后重新设置列宽
+	}
+	return QObject::eventFilter(a对象, a事件);
 }
 void C参数列表::f重置尺寸(int a宽) {
 	if (w参数列表->verticalScrollBar()->isVisible()) {	//垂直滚动条出现时才缩短输入列
@@ -72,10 +82,11 @@ void C参数列表::f刷新列表(const C命令文件 &a命令, const C实参组
 							va参数值.push_back({&a参数, v绑定参数值});
 						}
 					}
-				} else {	//单参数,添加一行
-					va参数值.push_back({&a参数, v设置.fg绑定参数值(a参数.m名称)});
+				} else {	//单参数,添加一行: 有绑定值用绑定值,否则用命令文件的默认值
+					const QString v绑定值 = v设置.fg绑定参数值(a参数.m名称);
+					va参数值.push_back({&a参数, v绑定值.isEmpty() ? a参数.fg默认值() : v绑定值});
 				}
-			} else {	//无绑定设置,添加一行
+			} else {	//无绑定设置,添加一行: 用命令文件的默认值
 				va参数值.push_back({&a参数, a参数.fg默认值()});
 			}
 		}
@@ -121,8 +132,6 @@ void C参数列表::f刷新列表(const C命令文件 &a命令, const C实参组
 			f添加行(*v参数, v值);
 		}
 	}
-	//垂直滚动条出现/消失时,重新调整列宽(缩短或恢复输入列)
-	f重置尺寸(w参数列表->width());
 }
 void C参数列表::f添加分组行(const QString &a组名) {	//添加参数分组行: 只显示分组名, 非参数行
 	const int v新行号 = m模型->rowCount();
@@ -144,6 +153,7 @@ int C参数列表::fg行数() const {
 }
 void C参数列表::f清空所有行() {
 	const int v行数 = m模型->rowCount();
+	ma多参数计数.clear();	//清空行数统计,避免切换命令时用到旧计数
 	if (v行数 == 0) {
 		return;
 	}
@@ -210,9 +220,9 @@ void C参数列表::f构造行(int a行号, const S命令参数 &a参数, tp参�
 		f建造输入控件(v建造);
 	}	break;
 	}
-	//第3列删除按钮
+	//第3列删除按钮(图标随后按是否多参数及行数确定)
 	QPushButton *w删除按钮 = new QPushButton(w参数列表);
-	w删除按钮->setIcon(QIcon::fromTheme(QIcon::ThemeIcon::EditDelete));
+	w删除按钮->setIcon(QIcon::fromTheme(QIcon::ThemeIcon::ViewRefresh));
 	w参数列表->setIndexWidget(m模型->index(a行号, c删除列), w删除按钮);
 	connect(w删除按钮, &QPushButton::clicked, this, &C参数列表::on_argdelete_clicked);
 	//添加附加数据
@@ -221,17 +231,35 @@ void C参数列表::f构造行(int a行号, const S命令参数 &a参数, tp参�
 	if (a参数.m多参数) {
 		++ma多参数计数[a参数.m名称];
 	}
+	f更新删除按钮图标(a参数);	//行数变化后刷新该参数所有行的按钮图标
 	//函数结束检查
 	assert(w参数列表->indexWidget(v输入控件索引) != nullptr);	//新增控件忘记添加到模型会触发断言
 }
 void C参数列表::f删除行(int a行号) {
 	//只有多参数才能调用
-	const tp参数控件代理 &v代理 = ma代理.at(a行号);
-	int &v多参数计数 = ma多参数计数.at(v代理->m参数->m名称);
+	const S命令参数 *const vp参数 = ma代理.at(a行号)->m参数;	//删除行后代理失效,先保存参数指针
+	int &v多参数计数 = ma多参数计数.at(vp参数->m名称);
 	assert(v多参数计数 > 1);
 	--v多参数计数;
 	f删除行0(a行号);
 	f删除行1(a行号);
+	f更新删除按钮图标(*vp参数);	//行数减少后刷新按钮图标(只剩一行时变回刷新图标)
+}
+void C参数列表::f更新删除按钮图标(const S命令参数 &a参数) {
+	const bool v多行 = a参数.m多参数 && ma多参数计数.contains(a参数.m名称) && ma多参数计数.at(a参数.m名称) > 1;
+	const QIcon v图标 = QIcon::fromTheme(v多行 ? QIcon::ThemeIcon::EditDelete : QIcon::ThemeIcon::ViewRefresh);
+	const int v行数 = m模型->rowCount();
+	for (int i = 0; i != v行数; ++i) {
+		const tp参数控件代理 &v代理 = ma代理.at(i);
+		if (!v代理 || v代理->m参数 != &a参数) {	//分组行或其它参数的行
+			continue;
+		}
+		QPushButton *const w按钮 = qobject_cast<QPushButton *>(w参数列表->indexWidget(m模型->index(i, c删除列)));
+		if (w按钮) {
+			w按钮->setIcon(v图标);
+			w按钮->setToolTip(v多行 ? "删除该行" : "恢复默认值");
+		}
+	}
 }
 void C参数列表::f删除行0(int a行号) {
 	for (int v列号 = 0; v列号 != c列数; ++v列号) {

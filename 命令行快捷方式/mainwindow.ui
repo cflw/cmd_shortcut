@@ -37,6 +37,22 @@
        <widget class="QLineEdit" name="w_cmd"/>
       </item>
       <item>
+       <widget class="QToolButton" name="w_stop">
+        <property name="toolTip">
+         <string>停止(Ctrl+Backspace)</string>
+        </property>
+        <property name="text">
+         <string>停止</string>
+        </property>
+        <property name="icon">
+         <iconset theme="QIcon::ThemeIcon::MediaPlaybackStop"/>
+        </property>
+        <property name="shortcut">
+         <string>Ctrl+Backspace</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QToolButton" name="w_exec">
         <property name="toolTip">
          <string>执行(Ctrl+Enter)</string>

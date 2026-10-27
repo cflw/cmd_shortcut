@@ -5,9 +5,8 @@
 #include "arginterface.h"
 //参数
 struct S组合框选项 {
-	QString m名称;	//显示名称,没有则显示值
+	QString m名称;	//显示名称,没有则显示值; 也用于<参数>的<默认值>指定默认选项
 	QString m值;	//参数值,必需
-	bool mi默认 = false;
 	QString fg显示文本() const;	//格式: 名称(参数)
 };
 //代理

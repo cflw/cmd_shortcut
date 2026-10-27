@@ -27,13 +27,15 @@ public:
 	QString f生成(const QString &) const;
 	QString fg默认值() const;
 	QString f选项_g值(int) const;
-	int f选项_默认索引() const;	//找默认选项的索引,没有则返回-1
-	int f选项_找索引(const QString &) const;	//找值所在的索引,没有则返回-1
+	int f选项_默认索引() const;	//找默认选项的索引(按<默认值>中的选项名称),没有则返回-1
+	int f选项_找索引(const QString &值) const;	//找值所在的索引,没有则返回-1
+	int f选项_找名称索引(const QString &名称) const;	//找名称所在的索引,没有则返回-1
 public:
 	QString m名称;
 	QString m描述;	//帮助文本:参数说明
 	QString m提示;
 	QString m模板;	//模板字符串
+	QString m默认值;	//参数默认值(来自命令文件<默认值>); 参数类型=选项 时填选项名称
 	QString m过滤器;	//参数类型=路径 用到
 	tf参数模板 mf模板;	//模板
 	E参数类型 m参数类型 = E参数类型::e任意;
